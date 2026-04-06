@@ -1,0 +1,3 @@
+◇ injecting env (4) from .env // tip: ⌘ enable debugging { debug: true }
+🚀 Stock Manager Backend running on http://localhost:5000
+Make sure your .env file has SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY

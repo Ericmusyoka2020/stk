@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    body { font-family: system-ui, sans-serif; }
+    .stock-row:hover { background-color: #f8fafc; }
+    .editable { cursor: pointer; }
+    .editable:hover { background-color: #fefce8; }
+    .cart-item { transition: all 0.2s; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div class="max-w-7xl mx-auto p-6">
+
+    <!-- AUTH SCREEN -->
+    <div id="auth-screen" class="max-w-md mx-auto mt-20 bg-white rounded-2xl shadow-xl p-8">
+      <h1 class="text-3xl font-bold text-center mb-8 text-indigo-600">Stock Manager</h1>
+      <h2 id="form-title" class="text-2xl font-semibold text-center mb-6">Login</h2>
+      
+      <input id="email" type="email" placeholder="Email" class="w-full p-4 border rounded-xl mb-3 focus:outline-none focus:border-indigo-500">
+      <input id="password" type="password" placeholder="Password" class="w-full p-4 border rounded-xl mb-6 focus:outline-none focus:border-indigo-500">
+      
+      <button onclick="handleAuth()" id="auth-btn"
+        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 rounded-xl transition">Login</button>
+      
+      <p id="toggle-text" class="text-center mt-6 text-gray-600">
+        Don't have an account? 
+        <span onclick="toggleAuthMode()" class="text-indigo-600 cursor-pointer font-medium">Sign Up</span>
+      </p>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="hidden">
+      <div class="flex justify-between items-center mb-8">
+        <h1 class="text-4xl font-bold text-gray-800">Stock Manager</h1>
+        
+        <div class="flex items-center gap-4">
+          <div onclick="showProfileModal()" class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 px-4 py-2 rounded-2xl transition">
+            <i class="fas fa-user-circle text-2xl text-gray-600"></i>
+            <div>
+              <p id="user-email" class="font-medium text-sm"></p>
+              <p class="text-xs text-gray-500">Profile</p>
+            </div>
+          </div>
+          <button onclick="logout()" class="flex items-center gap-2 bg-red-100 hover:bg-red-200 text-red-700 px-5 py-2 rounded-2xl font-medium">
+            <i class="fas fa-sign-out-alt"></i> Logout
+          </button>
+        </div>
+      </div>
+
+      <!-- Total Portfolio Value -->
+      <div class="bg-white rounded-3xl shadow p-6 mb-8 flex items-center justify-between">
+        <div>
+          <p class="text-sm text-gray-500">TOTAL PORTFOLIO VALUE</p>
+          <p id="total-value" class="text-5xl font-bold text-emerald-600">KSh 0.00</p>
+        </div>
+        <i class="fas fa-chart-line text-6xl text-emerald-200"></i>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        <!-- Inventory -->
+        <div class="bg-white rounded-3xl shadow">
+          <div class="p-6 border-b">
+            <h3 class="font-semibold text-xl">Inventory</h3>
+          </div>
+          <div class="p-4 border-b">
+            <input type="text" id="inventory-search" oninput="searchInventory()" placeholder="Search items..."
+              class="w-full p-3 border rounded-xl focus:outline-none focus:border-indigo-500">
+          </div>
+          <div class="max-h-[560px] overflow-auto">
+            <table class="w-full">
+              <thead class="sticky top-0 bg-gray-100">
+                <tr>
+                  <th class="w-12 p-4"><input type="checkbox" id="select-all" onclick="toggleSelectAll()"></th>
+                  <th class="text-left p-4">Item Name</th>
+                  <th class="text-right p-4">Quantity</th>
+                  <th class="text-right p-4">Unit Price</th>
+                  <th class="text-right p-4">Total Value</th>
+                  <th class="w-20 p-4 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody id="inventory-body" class="divide-y"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Sell Cart -->
+        <div class="bg-white rounded-3xl shadow">
+          <div class="p-6 border-b bg-amber-50 rounded-t-3xl flex justify-between items-center">
+            <h3 class="font-semibold text-xl flex items-center gap-2">
+              <i class="fas fa-shopping-cart"></i> Sell Cart
+            </h3>
+            <span id="cart-count" class="bg-amber-600 text-white text-xs px-3 py-1 rounded-full font-medium">0 items</span>
+          </div>
+
+          <div id="cart-items" class="p-6 max-h-[480px] overflow-auto space-y-4 min-h-[200px]">
+            <!-- Cart items populated by JavaScript -->
+          </div>
+
+          <div class="p-6 border-t bg-gray-50 rounded-b-3xl">
+            <div class="flex justify-between items-center text-lg mb-4">
+              <span class="font-medium">Total Amount:</span>
+              <span id="cart-total" class="font-bold text-3xl text-emerald-600">KSh 0.00</span>
+            </div>
+            <button onclick="confirmSell()" id="confirm-sell-btn"
+              class="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white font-semibold py-4 rounded-2xl transition">
+              CONFIRM SELL
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Adjust Stock Quantity -->
+      <div class="mt-8 bg-blue-50 rounded-3xl shadow p-8 border-2 border-blue-200">
+        <h3 class="text-xl font-bold mb-6 flex items-center gap-3 text-blue-800">
+          <i class="fas fa-plus-circle"></i> Adjust Stock Amount
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div>
+            <label class="block text-sm font-medium text-blue-700 mb-2">Select Item</label>
+            <select id="adjust-item" class="w-full p-4 border-2 border-blue-300 rounded-2xl focus:border-blue-500 focus:outline-none bg-white">
+              <option value="">Choose item to adjust...</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-blue-700 mb-2">Amount to Add (+/-)</label>
+            <input id="adjust-amount" type="number" step="1" placeholder="e.g. 10 or -5" 
+                   class="w-full p-4 border-2 border-blue-300 rounded-2xl focus:border-blue-500 focus:outline-none bg-white">
+          </div>
+          <button onclick="adjustStockAmount()" 
+                  class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-2xl transition md:col-span-1">
+            Update Stock
+          </button>
+        </div>
+        <p class="text-xs text-blue-600 mt-3 italic">Positive = add stock, Negative = reduce stock</p>
+      </div>
+
+      <!-- Add New Item -->
+      <div class="mt-10 bg-white rounded-3xl shadow p-6">
+
+        <h3 class="font-semibold mb-4">Add New Stock Item</h3>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <input id="new-name" placeholder="Item name" class="p-4 border rounded-2xl focus:outline-none focus:border-indigo-500">
+          <input id="new-qty" type="number" value="10" placeholder="Initial Quantity" class="p-4 border rounded-2xl focus:outline-none focus:border-indigo-500">
+          <input id="new-price" type="number" step="0.01" placeholder="Unit Price (KSh)" class="p-4 border rounded-2xl focus:outline-none focus:border-indigo-500">
+          <button onclick="addNewItem()" id="add-item-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-semibold">Add Item</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Password Modal -->
+  <div id="password-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8">
+      <h2 class="text-2xl font-bold mb-6 text-gray-800">Change Password</h2>
+      
+      <div class="space-y-5">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
+          <input id="current-password" type="password" placeholder="Enter current password" 
+                 class="w-full p-4 border rounded-2xl focus:outline-none focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+          <input id="new-password" type="password" placeholder="Minimum 6 characters" 
+                 class="w-full p-4 border rounded-2xl focus:outline-none focus:border-indigo-500">
+        </div>
+      </div>
+
+      <div class="flex gap-3 mt-8">
+        <button onclick="closePasswordModal()" 
+                class="flex-1 py-4 border border-gray-300 rounded-2xl font-medium hover:bg-gray-100">Cancel</button>
+        <button onclick="changePassword()" 
+                class="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-semibold">Update Password</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:5000';   // Change this when you deploy
+    let currentToken = null;
+    let cart = [];
+    let currentStocks = [];
+    let currentUserEmail = '';
+
+    async function apiFetch(endpoint, options = {}) {
+      const res = await fetch(API + endpoint, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentToken}`
+        }
+      });
+      const data = await res.json();
+      if (!res.ok) throw data.error || 'Request failed';
+      return data;
+    }
+
+    // ==================== AUTH ====================
+    function toggleAuthMode() {
+      const title = document.getElementById('form-title');
+      const btn = document.getElementById('auth-btn');
+      const toggle = document.getElementById('toggle-text');
+      if (title.textContent === 'Login') {
+        title.textContent = 'Sign Up';
+        btn.textContent = 'Create Account';
+        toggle.innerHTML = `Already have account? <span onclick="toggleAuthMode()" class="text-indigo-600 cursor-pointer">Login</span>`;
+      } else {
+        title.textContent = 'Login';
+        btn.textContent = 'Login';
+        toggle.innerHTML = `Don't have an account? <span onclick="toggleAuthMode()" class="text-indigo-600 cursor-pointer">Sign Up</span>`;
+      }
+    }
+
+    async function handleAuth() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const isLogin = document.getElementById('form-title').textContent === 'Login';
+
+      if (!email || !password) return alert("Email and password are required");
+
+      try {
+        const res = await fetch(API + (isLogin ? '/api/auth/login' : '/api/auth/signup'), {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({email, password})
+        });
+        const data = await res.json();
+        if (!res.ok) throw data.error || data;
+
+        if (isLogin) {
+          currentToken = data.access_token;
+          localStorage.setItem('token', currentToken);
+          currentUserEmail = email;
+          showDashboard();
+        } else {
+          alert('Account created successfully! Please login now.');
+          toggleAuthMode();
+        }
+      } catch (e) {
+        alert(e);
+      }
+    }
+
+    function showDashboard() {
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+      document.getElementById('user-email').textContent = currentUserEmail;
+      loadInventory();
+    }
+
+    // ==================== PROFILE & PASSWORD ====================
+    function showProfileModal() {
+      document.getElementById('password-modal').classList.remove('hidden');
+      document.getElementById('current-password').value = '';
+      document.getElementById('new-password').value = '';
+    }
+
+    function closePasswordModal() {
+      document.getElementById('password-modal').classList.add('hidden');
+    }
+
+    async function changePassword() {
+      const currentPass = document.getElementById('current-password').value;
+      const newPass = document.getElementById('new-password').value;
+
+      if (!currentPass || !newPass) return alert("Please fill both fields");
+      if (newPass.length < 6) return alert("New password must be at least 6 characters");
+
+      try {
+        // Verify current password
+        const verifyRes = await fetch(API + '/api/auth/login', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ email: currentUserEmail, password: currentPass })
+        });
+        if (!verifyRes.ok) throw "Current password is incorrect";
+
+        // Update password
+        const changeRes = await fetch(API + '/api/auth/change-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentToken}`
+          },
+          body: JSON.stringify({ new_password: newPass })
+        });
+
+        const result = await changeRes.json();
+        if (!changeRes.ok) throw result.error || "Failed to change password";
+
+        alert("Password changed successfully!");
+        closePasswordModal();
+      } catch (e) {
+        alert(e);
+      }
+    }
+
+    // ==================== INVENTORY ====================
+    async function loadInventory() {
+      try {
+        currentStocks = await apiFetch('/api/inventory');
+        populateAdjustDropdown();
+        document.getElementById('inventory-search').value = '';
+
+        const tbody = document.getElementById('inventory-body');
+        tbody.innerHTML = '';
+
+        let portfolioTotal = 0;
+
+        currentStocks.forEach(stock => {
+          const itemTotal = stock.quantity * stock.unit_price;
+          portfolioTotal += itemTotal;
+
+          const row = document.createElement('tr');
+          row.className = 'stock-row';
+          row.innerHTML = `
+            <td class="p-4"><input type="checkbox" class="item-checkbox w-5 h-5" data-id="${stock.id}" onchange="toggleCartItem(this)"></td>
+            <td class="p-4 font-medium">${stock.item_name}</td>
+            <td class="p-4 text-right">
+              <span onclick="editField(this, '${stock.id}', 'quantity')" class="editable px-4 py-1 rounded-xl">${stock.quantity}</span>
+            </td>
+            <td class="p-4 text-right">
+              <span onclick="editField(this, '${stock.id}', 'unit_price')" class="editable px-4 py-1 rounded-xl">
+                KSh ${Number(stock.unit_price).toFixed(2)}
+              </span>
+            </td>
+            <td class="p-4 text-right font-semibold">KSh ${itemTotal.toFixed(2)}</td>
+            <td class="p-4 text-center">
+              <button onclick="deleteItem('${stock.id}')" class="text-red-500 hover:text-red-700">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+
+        document.getElementById('total-value').textContent = `KSh ${portfolioTotal.toFixed(2)}`;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function searchInventory() {
+      const query = document.getElementById('inventory-search').value.toLowerCase();
+      const rows = document.querySelectorAll('#inventory-body tr');
+      rows.forEach(row => {
+        const name = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+        row.style.display = name.includes(query) ? '' : 'none';
+      });
+    }
+
+    async function editField(element, id, field) {
+      const currentText = element.textContent.trim().replace(/[^\d.-]/g, '');
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.step = field === 'unit_price' ? '0.01' : '1';
+      input.value = currentText;
+      input.className = "w-full text-right bg-white border-2 border-indigo-500 rounded-xl p-2";
+
+      element.replaceWith(input);
+      input.focus();
+      input.select();
+
+      const save = async () => {
+        let newValue = parseFloat(input.value);
+        if (isNaN(newValue) || newValue < 0) newValue = parseFloat(currentText);
+
+        try {
+          await apiFetch(`/api/inventory/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ [field]: newValue })
+          });
+          loadInventory();
+        } catch (err) {
+          alert("Update failed: " + err);
+          loadInventory();
+        }
+      };
+
+      input.addEventListener('blur', save);
+      input.addEventListener('keypress', e => { if (e.key === 'Enter') input.blur(); });
+    }
+
+    // ==================== SELL CART ====================
+    function toggleCartItem(checkbox) {
+      const id = checkbox.dataset.id;
+      const stock = currentStocks.find(s => s.id === id);
+      if (!stock) return;
+
+      if (checkbox.checked) {
+        if (!cart.find(item => item.id === id)) {
+          cart.push({
+            id: stock.id,
+            item_name: stock.item_name,
+            available_qty: stock.quantity,
+            unit_price: stock.unit_price,
+            quantity_to_sell: 1
+          });
+        }
+      } else {
+        cart = cart.filter(item => item.id !== id);
+      }
+      renderCart();
+    }
+
+    function renderCart() {
+      const container = document.getElementById('cart-items');
+      container.innerHTML = '';
+
+      if (cart.length === 0) {
+        container.innerHTML = `<p class="text-gray-400 text-center py-12">Select items from inventory to add to sell cart.</p>`;
+        document.getElementById('cart-count').textContent = '0 items';
+        document.getElementById('cart-total').textContent = 'KSh 0.00';
+        document.getElementById('confirm-sell-btn').disabled = true;
+        return;
+      }
+
+      let totalAmount = 0;
+
+      cart.forEach((item, index) => {
+        const itemTotal = item.quantity_to_sell * item.unit_price;
+        totalAmount += itemTotal;
+
+        const div = document.createElement('div');
+        div.className = 'cart-item bg-gray-50 p-4 rounded-2xl';
+        div.innerHTML = `
+          <div class="flex justify-between mb-2">
+            <p class="font-medium">${item.item_name}</p>
+            <button onclick="removeFromCart(${index})" class="text-red-500"><i class="fas fa-times"></i></button>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button onclick="changeCartQty(${index}, -1)" class="w-8 h-8 bg-white rounded-xl shadow">-</button>
+              <input type="number" value="${item.quantity_to_sell}" min="1" max="${item.available_qty}"
+                     onchange="updateCartQty(${index}, this.value)" class="w-20 text-center border rounded-xl p-2 font-mono">
+              <button onclick="changeCartQty(${index}, 1)" class="w-8 h-8 bg-white rounded-xl shadow">+</button>
+            </div>
+            <div class="text-right">
+              <p class="font-semibold text-lg">KSh ${itemTotal.toFixed(2)}</p>
+              <p class="text-xs text-gray-500">@ KSh ${item.unit_price.toFixed(2)}</p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">Available: ${item.available_qty}</p>
+        `;
+        container.appendChild(div);
+      });
+
+      document.getElementById('cart-count').textContent = `${cart.length} item${cart.length > 1 ? 's' : ''}`;
+      document.getElementById('cart-total').textContent = `KSh ${totalAmount.toFixed(2)}`;
+      document.getElementById('confirm-sell-btn').disabled = false;
+    }
+
+    function changeCartQty(index, delta) {
+      const item = cart[index];
+      let newQty = item.quantity_to_sell + delta;
+      if (newQty < 1) newQty = 1;
+      if (newQty > item.available_qty) newQty = item.available_qty;
+      item.quantity_to_sell = newQty;
+      renderCart();
+    }
+
+    function updateCartQty(index, value) {
+      const item = cart[index];
+      let newQty = parseInt(value) || 1;
+      newQty = Math.max(1, Math.min(newQty, item.available_qty));
+      item.quantity_to_sell = newQty;
+      renderCart();
+    }
+
+    function removeFromCart(index) {
+      cart.splice(index, 1);
+      renderCart();
+    }
+
+    async function confirmSell() {
+      if (cart.length === 0) return;
+      if (!confirm('Confirm selling these items?')) return;
+
+      let success = 0;
+      for (const item of cart) {
+        try {
+          await apiFetch(`/api/inventory/${item.id}/sell`, {
+            method: 'POST',
+            body: JSON.stringify({ amount: item.quantity_to_sell })
+          });
+          success++;
+        } catch (e) { console.error(e); }
+      }
+
+      alert(`Sell completed! ${success} items updated successfully.`);
+      cart = [];
+      loadInventory();
+    }
+
+    function populateAdjustDropdown() {
+      const select = document.getElementById('adjust-item');
+      select.innerHTML = '<option value="">Choose item to adjust...</option>';
+      currentStocks.forEach(stock => {
+        const option = document.createElement('option');
+        option.value = stock.id;
+        option.textContent = `${stock.item_name} (Current: ${stock.quantity})`;
+        select.appendChild(option);
+      });
+    }
+
+    async function adjustStockAmount() {
+      const select = document.getElementById('adjust-item');
+      const amountInput = document.getElementById('adjust-amount');
+      
+      const id = select.value;
+      let amount = parseInt(amountInput.value);
+      
+      if (!id) return alert('Please select an item');
+      if (isNaN(amount) || amount === 0) return alert('Please enter a valid non-zero amount');
+      
+      if (!confirm(`Update ${amount > 0 ? 'add' : 'remove'} ${Math.abs(amount)} units to the selected item?`)) return;
+      
+      try {
+        // Get current stock to calculate new quantity
+        const currentStock = currentStocks.find(s => s.id == id);
+        const newQuantity = currentStock.quantity + amount;
+        
+        if (newQuantity < 0) return alert('Cannot reduce stock below 0');
+        
+        await apiFetch(`/api/inventory/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ quantity: newQuantity })
+        });
+        
+        alert('Stock adjusted successfully!');
+        select.value = '';
+        amountInput.value = '';
+        loadInventory();
+      } catch (e) {
+        alert('Update failed: ' + (e || 'Unknown error'));
+      }
+    }
+
+    // ==================== OTHER FUNCTIONS ====================
+    async function addNewItem() {
+      const btn = document.getElementById('add-item-btn');
+      const name = document.getElementById('new-name').value.trim();
+      const qty = parseInt(document.getElementById('new-qty').value) || 0;
+      const price = parseFloat(document.getElementById('new-price').value) || 0;
+
+      if (!name || price <= 0) return alert('Item name and unit price are required');
+
+      btn.textContent = 'Saving...';
+      btn.disabled = true;
+
+      try {
+        await apiFetch('/api/inventory', {
+          method: 'POST',
+          body: JSON.stringify({ item_name: name, quantity: qty, unit_price: price })
+        });
+        document.getElementById('new-name').value = '';
+        loadInventory();
+      } catch (e) { alert(e); }
+      finally {
+        btn.textContent = 'Add Item';
+        btn.disabled = false;
+      }
+    }
+
+    async function deleteItem(id) {
+      if (!confirm('Delete this item permanently?')) return;
+      try {
+        await apiFetch(`/api/inventory/${id}`, { method: 'DELETE' });
+        loadInventory();
+      } catch (e) { alert(e); }
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      location.reload();
+    }
+
+    function toggleSelectAll() {
+      const checked = document.getElementById('select-all').checked;
+      document.querySelectorAll('.item-checkbox').forEach(cb => {
+        cb.checked = checked;
+        toggleCartItem(cb);
+      });
+    }
+
+    // Auto login
+    window.onload = () => {
+      const savedToken = localStorage.getItem('token');
+      if (savedToken) {
+        currentToken = savedToken;
+        // For simplicity we use last entered email. You can improve this later.
+        currentUserEmail = document.getElementById('email').value || "user@example.com";
+        showDashboard();
+      }
+    };
+  </script>
+</body>
+</html>
