@@ -1,3 +1,4 @@
+
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
@@ -10,6 +11,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ====================== SUPABASE CLIENTS ======================
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -23,14 +25,24 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
+
   if (!token) return res.status(401).json({ error: 'Access token required' });
 
   const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+
   if (error || !user) return res.status(403).json({ error: 'Invalid or expired token' });
 
   req.user = user;
   next();
 };
+
+// ====================== HEALTH CHECK ======================
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Stock Manager Backend is running on Vercel 🚀',
+    status: 'healthy'
+  });
+});
 
 // ====================== AUTH ROUTES ======================
 // Signup
@@ -56,26 +68,17 @@ app.post('/api/auth/login', async (req, res) => {
   });
 });
 
-// Change Password (Direct by Email)
+// Change Password
 app.post('/api/auth/change-password', async (req, res) => {
   const { email, new_password } = req.body;
-  if (!email || !new_password) {
-    return res.status(400).json({ error: 'Email and new password are required' });
-  }
-  if (new_password.length < 6) {
-    return res.status(400).json({ error: 'New password must be at least 6 characters long' });
-  }
+  if (!email || !new_password) return res.status(400).json({ error: 'Email and new password are required' });
+  if (new_password.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters long' });
 
   try {
     const { data: user, error: getError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
-    if (getError || !user.user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    if (getError || !user?.user) return res.status(404).json({ error: 'User not found' });
 
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(
-      user.user.id,
-      { password: new_password }
-    );
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(user.user.id, { password: new_password });
     if (error) return res.status(500).json({ error: error.message });
     res.json({ message: 'Password changed successfully!' });
   } catch (e) {
@@ -83,38 +86,23 @@ app.post('/api/auth/change-password', async (req, res) => {
   }
 });
 
-// Admin Password Reset
+// Admin Reset Password
 app.post('/api/admin/reset-password', async (req, res) => {
   const { email, new_password } = req.body;
-  if (!email || !new_password) {
-    return res.status(400).json({ error: 'Email and new password are required' });
-  }
-  if (new_password.length < 6) {
-    return res.status(400).json({ error: 'New password must be at least 6 characters long' });
-  }
+  if (!email || !new_password) return res.status(400).json({ error: 'Email and new password are required' });
+  if (new_password.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters long' });
 
   try {
     const { data: users, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-    if (listError) {
-      console.error('List users error:', listError);
-      return res.status(500).json({ error: 'Failed to list users' });
-    }
-    const user = users.users.find(u => u.email === email);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    if (listError) return res.status(500).json({ error: 'Failed to list users' });
 
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(
-      user.id,
-      { password: new_password }
-    );
-    if (error) {
-      console.error('Update error:', error);
-      return res.status(500).json({ error: error.message });
-    }
+    const user = users.users.find(u => u.email === email);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(user.id, { password: new_password });
+    if (error) return res.status(500).json({ error: error.message });
     res.json({ message: 'Password reset successfully!' });
   } catch (e) {
-    console.error('Exception:', e);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -122,33 +110,25 @@ app.post('/api/admin/reset-password', async (req, res) => {
 // ====================== INVENTORY ROUTES ======================
 app.use('/api/inventory', authenticateToken);
 
-// Get all user's inventory
+// Get inventory
 app.get('/api/inventory', async (req, res) => {
   const { data, error } = await supabaseAdmin
     .from('inventory')
     .select('*')
     .eq('user_id', req.user.id)
     .order('created_at', { ascending: false });
-
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
 
-// Add new item
+// Add item
 app.post('/api/inventory', async (req, res) => {
   const { item_name, quantity = 0, unit_price } = req.body;
-  if (!item_name || unit_price == null) {
-    return res.status(400).json({ error: 'Item name and unit price are required' });
-  }
+  if (!item_name || unit_price == null) return res.status(400).json({ error: 'Item name and unit price are required' });
 
   const { data, error } = await supabaseAdmin
     .from('inventory')
-    .insert({
-      user_id: req.user.id,
-      item_name,
-      quantity: Number(quantity),
-      unit_price: Number(unit_price)
-    })
+    .insert({ user_id: req.user.id, item_name, quantity: Number(quantity), unit_price: Number(unit_price) })
     .select()
     .single();
 
@@ -166,9 +146,7 @@ app.patch('/api/inventory/:id', async (req, res) => {
   if (quantity !== undefined) updateData.quantity = Number(quantity);
   if (unit_price !== undefined) updateData.unit_price = Number(unit_price);
 
-  if (Object.keys(updateData).length === 0) {
-    return res.status(400).json({ error: 'No fields to update' });
-  }
+  if (Object.keys(updateData).length === 0) return res.status(400).json({ error: 'No fields to update' });
 
   const { data, error } = await supabaseAdmin
     .from('inventory')
@@ -222,9 +200,7 @@ app.post('/api/inventory/:id/sell', async (req, res) => {
     .single();
 
   if (!item) return res.status(404).json({ error: 'Item not found' });
-  if (Number(amount) > Number(item.quantity)) {
-    return res.status(400).json({ error: 'Not enough stock available' });
-  }
+  if (Number(amount) > Number(item.quantity)) return res.status(400).json({ error: 'Not enough stock available' });
 
   const newQty = Number(item.quantity) - Number(amount);
   const { data, error } = await supabaseAdmin
@@ -251,5 +227,5 @@ app.delete('/api/inventory/:id', async (req, res) => {
   res.json({ message: 'Item deleted successfully' });
 });
 
-// Export the app for Vercel serverless
+// ====================== EXPORT FOR VERCEL ======================
 module.exports = app;
