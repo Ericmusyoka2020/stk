@@ -11,7 +11,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ====================== SUPABASE CLIENTS ======================
+
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -21,7 +21,7 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { autoRefreshToken: false, persistSession: false }
 });
 
-// ====================== AUTH MIDDLEWARE ======================
+
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -40,7 +40,7 @@ const authenticateToken = async (req, res, next) => {
   next();
 };
 
-// ====================== HEALTH CHECK ======================
+
 app.get('/api', (req, res) => {
   res.json({ 
     message: 'Stock Manager Backend is running on Vercel 🚀',
@@ -48,8 +48,8 @@ app.get('/api', (req, res) => {
   });
 });
 
-// ====================== AUTH ROUTES ======================
-// Signup
+
+
 app.post('/api/auth/signup', async (req, res) => {
   const { email, password } = req.body;
   const { data, error } = await supabaseAdmin.auth.admin.createUser({
@@ -61,7 +61,7 @@ app.post('/api/auth/signup', async (req, res) => {
   res.status(201).json({ message: 'Account created successfully! You can now login.' });
 });
 
-// Login
+
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
@@ -72,7 +72,7 @@ app.post('/api/auth/login', async (req, res) => {
   });
 });
 
-// Change Password (Direct by Email)
+
 app.post('/api/auth/change-password', async (req, res) => {
   const { email, new_password } = req.body;
   if (!email || !new_password) {
@@ -99,7 +99,7 @@ app.post('/api/auth/change-password', async (req, res) => {
   }
 });
 
-// Admin Password Reset
+
 app.post('/api/admin/reset-password', async (req, res) => {
   const { email, new_password } = req.body;
   if (!email || !new_password) {
@@ -136,10 +136,10 @@ app.post('/api/admin/reset-password', async (req, res) => {
   }
 });
 
-// ====================== INVENTORY ROUTES (Protected) ======================
+
 app.use('/api/inventory', authenticateToken);
 
-// Get all user's inventory
+
 app.get('/api/inventory', async (req, res) => {
   const { data, error } = await supabaseAdmin
     .from('inventory')
@@ -151,7 +151,7 @@ app.get('/api/inventory', async (req, res) => {
   res.json(data);
 });
 
-// Add new item
+
 app.post('/api/inventory', async (req, res) => {
   const { item_name, quantity = 0, unit_price } = req.body;
   if (!item_name || unit_price == null) {
@@ -173,7 +173,7 @@ app.post('/api/inventory', async (req, res) => {
   res.status(201).json(data);
 });
 
-// Update item
+
 app.patch('/api/inventory/:id', async (req, res) => {
   const { id } = req.params;
   const { item_name, quantity, unit_price } = req.body;
@@ -200,7 +200,7 @@ app.patch('/api/inventory/:id', async (req, res) => {
   res.json(data);
 });
 
-// Add stock
+
 app.post('/api/inventory/:id/add', async (req, res) => {
   const { id } = req.params;
   const { amount } = req.body;
@@ -227,7 +227,7 @@ app.post('/api/inventory/:id/add', async (req, res) => {
   res.json(data);
 });
 
-// Sell stock
+
 app.post('/api/inventory/:id/sell', async (req, res) => {
   const { id } = req.params;
   const { amount } = req.body;
@@ -257,7 +257,7 @@ app.post('/api/inventory/:id/sell', async (req, res) => {
   res.json(data);
 });
 
-// Delete item
+
 app.delete('/api/inventory/:id', async (req, res) => {
   const { id } = req.params;
   const { error } = await supabaseAdmin
@@ -270,5 +270,5 @@ app.delete('/api/inventory/:id', async (req, res) => {
   res.json({ message: 'Item deleted successfully' });
 });
 
-// ====================== EXPORT FOR VERCEL ======================
+
 module.exports = app;
